@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Generate Root Structure & Wrapper
+    - name: Generate Root Structure, Wrapper & Patch Manifest
       run: |
         # 1. Create the missing root settings.gradle.kts file first
         cat << 'EOF' > settings.gradle.kts
@@ -50,18 +50,22 @@ jobs:
         }
         EOF
 
-        # 3. Create gradle.properties to enable AndroidX (Fixes the current error)
+        # 3. Create gradle.properties to enable AndroidX
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         EOF
 
-        # 4. Download standalone Gradle 8.5 to initialize the environment
+        # 4. PATCH THE MANIFEST: Swap missing custom icon/theme for default Android system assets
+        sed -i 's/@mipmap\/ic_launcher/@android:drawable\/sym_def_app_icon/g' app/src/main/AndroidManifest.xml
+        sed -i 's/@style\/Theme.AppCompat.DayNight.NoActionBar/@android:style\/Theme.DeviceDefault.NoActionBar/g' app/src/main/AndroidManifest.xml
+
+        # 5. Download standalone Gradle 8.5 to initialize the environment
         wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
         
-        # 5. Generate local wrapper assets safely now that files exist
+        # 6. Generate local wrapper assets safely
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
