@@ -2,6 +2,7 @@ package com.jsux.safeguard.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.camera.core.CameraSelector
@@ -26,7 +27,8 @@ class CaptureService : LifecycleService() {
 
         val channelId = "safeguard_service"
         val channel = NotificationChannel(channelId, "Safeguard Active", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Safeguard")
@@ -40,10 +42,16 @@ class CaptureService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         
-        val uriString = intent?.getStringExtra("SAVE_URI")
+        // 1. Try to get URI from Intent (Manual trigger)
+        // 2. Fallback to SharedPreferences (AdminReceiver trigger)
+        var uriString = intent?.getStringExtra("SAVE_URI")
+        if (uriString == null) {
+            uriString = getSharedPreferences("safeguard_prefs", Context.MODE_PRIVATE)
+                .getString("SAVED_URI_KEY", null)
+        }
+
         if (uriString != null) {
-            val uri = Uri.parse(uriString)
-            startCamera(uri)
+            startCamera(Uri.parse(uriString))
         } else {
             stopSelf()
         }
@@ -60,7 +68,7 @@ class CaptureService : LifecycleService() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, imageCapture)
+                cameraProvider.bindToLifecycle(this, cameraSelector, imageCapture!!)
                 takePhoto(saveUri)
             } catch (e: Exception) {
                 stopSelf()

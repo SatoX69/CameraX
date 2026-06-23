@@ -1,9 +1,9 @@
 package com.jsux.safeguard
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -15,14 +15,11 @@ import com.jsux.safeguard.service.CaptureService
 
 class MainActivity : AppCompatActivity() {
 
-    private var selectedDirectoryUri: Uri? = null
-
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
-            Toast.makeText(this, "Camera permission is required", Toast.LENGTH_LONG).show()
-            finish()
+            Toast.makeText(this, "Camera permission is required for the application to function.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -34,8 +31,14 @@ class MainActivity : AppCompatActivity() {
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
-            selectedDirectoryUri = uri
-            findViewById<TextView>(R.id.statusText).text = "Storage Linked"
+            
+            // Persist the URI for the AdminReceiver to use later
+            getSharedPreferences("safeguard_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("SAVED_URI_KEY", uri.toString())
+                .apply()
+                
+            findViewById<TextView>(R.id.statusText).text = "Storage Linked Successfully"
         }
     }
 
@@ -43,6 +46,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Request Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -52,10 +56,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnStart).setOnClickListener {
-            val uri = selectedDirectoryUri
-            if (uri != null) {
+            val prefs = getSharedPreferences("safeguard_prefs", Context.MODE_PRIVATE)
+            val uriString = prefs.getString("SAVED_URI_KEY", null)
+            
+            if (uriString != null) {
                 val intent = Intent(this, CaptureService::class.java).apply {
-                    putExtra("SAVE_URI", uri.toString())
+                    putExtra("SAVE_URI", uriString)
                 }
                 ContextCompat.startForegroundService(this, intent)
                 Toast.makeText(this, "Capture sequence initiated", Toast.LENGTH_SHORT).show()
