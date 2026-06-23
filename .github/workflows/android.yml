@@ -20,32 +20,44 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Fix Missing Root Build Files & Wrapper
+    - name: Generate Root Structure & Wrapper
       run: |
-        # 1. Download a modern Gradle (v8.5) instead of the ancient apt-get version
+        # 1. Create the missing root settings.gradle.kts file first
+        cat << 'EOF' > settings.gradle.kts
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "Safeguard"
+        include(":app")
+        EOF
+
+        # 2. Create the missing root build.gradle.kts file
+        cat << 'EOF' > build.gradle.kts
+        plugins {
+            id("com.android.application") version "8.2.2" apply false
+            id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+        }
+        EOF
+
+        # 3. Download standalone Gradle 8.5 to initialize the environment
         wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
         
-        # 2. Generate the wrapper properly
+        # 4. Generate local wrapper assets safely now that files exist
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
-
-        # 3. Auto-generate settings.gradle.kts if missing (crucial for headless builds)
-        if [ ! -f "settings.gradle.kts" ]; then
-          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
-          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
-          echo 'rootProject.name = "Safeguard"' >> settings.gradle.kts
-          echo 'include(":app")' >> settings.gradle.kts
-        fi
-
-        # 4. Auto-generate root build.gradle.kts if missing
-        if [ ! -f "build.gradle.kts" ]; then
-          echo 'plugins {' > build.gradle.kts
-          echo '    id("com.android.application") version "8.2.0" apply false' >> build.gradle.kts
-          echo '    id("org.jetbrains.kotlin.android") version "1.9.0" apply false' >> build.gradle.kts
-          echo '}' >> build.gradle.kts
-        fi
 
     - name: Build Debug APK
       run: ./gradlew assembleDebug
