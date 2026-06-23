@@ -50,12 +50,18 @@ jobs:
         }
         EOF
 
-        # 3. Download standalone Gradle 8.5 to initialize the environment
+        # 3. Create gradle.properties to enable AndroidX (Fixes the current error)
+        cat << 'EOF' > gradle.properties
+        android.useAndroidX=true
+        android.enableJetifier=true
+        EOF
+
+        # 4. Download standalone Gradle 8.5 to initialize the environment
         wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
         unzip -q gradle-8.5-bin.zip
         export PATH=$PWD/gradle-8.5/bin:$PATH
         
-        # 4. Generate local wrapper assets safely now that files exist
+        # 5. Generate local wrapper assets safely now that files exist
         gradle wrapper --gradle-version 8.5
         chmod +x gradlew
 
