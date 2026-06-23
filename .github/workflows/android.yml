@@ -20,11 +20,32 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Install Gradle & Generate Wrapper
+    - name: Fix Missing Root Build Files & Wrapper
       run: |
-        sudo apt-get update && sudo apt-get install -y gradle
-        gradle wrapper
+        # 1. Download a modern Gradle (v8.5) instead of the ancient apt-get version
+        wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+        unzip -q gradle-8.5-bin.zip
+        export PATH=$PWD/gradle-8.5/bin:$PATH
+        
+        # 2. Generate the wrapper properly
+        gradle wrapper --gradle-version 8.5
         chmod +x gradlew
+
+        # 3. Auto-generate settings.gradle.kts if missing (crucial for headless builds)
+        if [ ! -f "settings.gradle.kts" ]; then
+          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
+          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
+          echo 'rootProject.name = "Safeguard"' >> settings.gradle.kts
+          echo 'include(":app")' >> settings.gradle.kts
+        fi
+
+        # 4. Auto-generate root build.gradle.kts if missing
+        if [ ! -f "build.gradle.kts" ]; then
+          echo 'plugins {' > build.gradle.kts
+          echo '    id("com.android.application") version "8.2.0" apply false' >> build.gradle.kts
+          echo '    id("org.jetbrains.kotlin.android") version "1.9.0" apply false' >> build.gradle.kts
+          echo '}' >> build.gradle.kts
+        fi
 
     - name: Build Debug APK
       run: ./gradlew assembleDebug
