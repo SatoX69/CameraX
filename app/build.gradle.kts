@@ -23,6 +23,11 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    packaging {
+        jniLibs {
+            pickFirsts.add("lib/**/libimage_processing_util_jni.so")
+        }
+    }
 }
 
 dependencies {
